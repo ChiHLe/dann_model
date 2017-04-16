@@ -71,9 +71,9 @@ if __name__ == '__main__':
     seed = 12342
     np.random.seed(seed)
     top_words = 5000
-    data_folder = './data/'     # where the datasets are
+    data_folder = '/home/chle/small_amazon_data/'     # where the datasets are
     source_name = 'dvd'         # source domain: books, dvd, kitchen, or electronics
-    target_name = 'electronics' # traget domain: books, dvd, kitchen, or electronics
+    target_name = 'books' # traget domain: books, dvd, kitchen, or electronics
 
     print("Loading data...")
     X_train, y_train, X_test, y_test, X_new, y_new, X_domain, y_domain = load_amazon(source_name, target_name, data_folder, verbose=True)
@@ -92,12 +92,12 @@ for i in range(0,30):
     print("Trial # ", i)
 
     Model = Sequential()
-    Model.add(Conv1D(filters=32, kernel_size=3, padding='same', activation='relu', input_shape=(max_words,1)))
-    Model.add(Dropout(0.25))
+    Model.add(Conv1D(filters=128, kernel_size=3, padding='same', activation='relu', input_shape=(max_words,1)))
+   # Model.add(Dropout(0.25))
     Model.add(MaxPooling1D(pool_size=2))
     Model.add(Flatten())
-    Model.add(Dense(50, activation='sigmoid'))
-    Model.add(Dropout(0.25))
+    Model.add(Dense(50, activation='relu'))
+   # Model.add(Dropout(0.25))
     Model.add(Dense(1, activation='sigmoid'))
     Model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -110,7 +110,7 @@ for i in range(0,30):
 
     domain = Sequential()
     domain.add(Model)
-    dense_layer = Dense(50, activation='relu')
+    dense_layer = Dense(100, activation='relu')
     domain.add(GradientReversalLayer(1))
     domain.add(dense_layer)
     domain.add(Dropout(0.25))
@@ -119,27 +119,30 @@ for i in range(0,30):
 
 
     # Fit the model
-    for epoch in range(0,101):
-        print("Training labels")
+    for epoch in range(0,451):
+	print("Epoch ", epoch)
+       # print("Training labels")
         i = np.random.randint(0, X_train.shape[0]-32)
         label_predictor.train_on_batch(X_train[i:i+32], y_train[i:i+32])
         i = np.random.randint(0, X_domain.shape[0] - 32)
-        print("Training domain")
+       # print("Training domain")
+       #	print(X_domain[i:i+32])
+       #	print(y_domain[i:i+32])
         domain.train_on_batch(X_domain[i:i + 32], y_domain[i:i + 32])
-        print("Testing")
-        i = np.random.randint(0,X_test.shape[0]-100)
-        current = label_predictor.test_on_batch(X_test[i:i+100], y_test[i:i+100])
-        print("Current accuracy: ", current)
-        if epoch % 5 == 0:
+       # print("Testing")
+       # i = np.random.randint(0,X_test.shape[0]-100)
+       # current = label_predictor.test_on_batch(X_test[i:i+100], y_test[i:i+100])
+       # print("Current accuracy: ", current)
+        if epoch % 50 == 0 and epoch != 0:
             scores = label_predictor.evaluate(X_test, y_test, verbose=1)
-            print("In Domain Accuracy: %.2f%%" %(scores[1]*100))
-            scores = label_predictor.evaluate(X_new, y_new, verbose=1)
-            if (scores[1] * 100 > in_score):
-               in_score = scores[1] * 100
-            print("Label Accuracy: %.2f%%" % (scores[1] * 100))
-            if (scores[1] * 100 > max_score):
-               max_score = scores[1] * 100
-            scores = label_predictor.evaluate(X_domain, y_domain, verbose=1)
+            print("In Domain Accuracy: %.2f%%" %(scores[1]*100))        
+            if (scores[1] * 100. > in_score):
+               in_score = scores[1] * 100.
+            scores= label_predictor.evaluate(X_new, y_new, verbose=1)
+            print("Target Domain Accuracy: %.2f%%" % (scores[1] * 100))
+            if (scores[1] * 100. > max_score):
+               max_score = scores[1] * 100.
+            scores = domain.evaluate(X_domain, y_domain, verbose=1)
             print("Domain Predictor Accuracy: %.2f%%" % (scores[1] * 100))
             print("Current target domain maximum accuracy: %.2f%%" % max_score)
             print("Current in domain maximum accuracy: %.2f%%" % in_score)
