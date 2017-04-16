@@ -163,16 +163,18 @@ if __name__ == '__main__':
     batch_size = 32
     test_size = 1000
     num_embed_dims = 512
-    num_adv = 5
+    num_adv = 3
 
     num_epochs = 100
     num_batches = 100
 
     Model = Sequential()
-    Model.add(Conv1D(filters=64, kernel_size=3, padding='same', activation='relu', input_shape=(sentence_length,1)))
+   # Model.add(Input(shape=(sentence_length,)))
+    Model.add(Embedding(d.vocab_size+22, 128, input_shape=(sentence_length,)))
+    Model.add(Conv1D(filters=64, kernel_size=3, padding='same', activation='relu'))
     Model.add(Dropout(0.25))
     Model.add(GlobalMaxPool1D())
-    Model.add(Dense(sentence_length, activation='tanh'))
+    Model.add(Dense(100, activation='tanh'))
     Model.add(Dropout(0.25))
     Model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -197,7 +199,7 @@ if __name__ == '__main__':
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size, d)
 
     # Yields the testing data.
-    amzn_test = yield_batches('amzn_test.tsv', sentence_length, test_size, d)
+    amzn_test = yield_batches('amazon_test.tsv', sentence_length, test_size, d)
     yelp_test = yield_batches('yelp_test.tsv', sentence_length, test_size, d)
 
         # Amazon -> 0, Yelp -> 1
@@ -205,13 +207,16 @@ if __name__ == '__main__':
     zeros_test, ones_test = np.zeros((test_size,)), np.ones((test_size,))
 
     def print_eval(iterable, name, adv_target):
-        sent, lines = iterable.next()
-        preds = label_predictor.predict([lines]).reshape(-1)
-        adv_preds = domain.predict([lines]).reshape(-1)
-        accuracy = np.mean(np.round(preds) == np.round(sent))
-        adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
+        sent, lines = iterable.next() 
+        
+        accuracy = label_predictor.evaluate([lines],[sent], verbose=1)
+        adv_accuracy = domain.evaluate([lines], [adv_target], verbose=1)
+       # preds = label_predictor.predict([lines]).reshape(-1)
+       # adv_preds = domain.predict([lines]).reshape(-1)
+       # accuracy = np.mean(np.round(preds) == np.round(sent))
+       # adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
         sys.stdout.write('   [ %s ] accuracy: %.3f  |  adv: %.3f\n'
-                         % (name, accuracy, adv_accuracy))
+                         % (name, accuracy[1]*100., adv_accuracy[1]*100.))
 
     for epoch in range(1, num_epochs + 1):
         sys.stdout.write('\repoch %d                  \n' % epoch)
@@ -222,13 +227,14 @@ if __name__ == '__main__':
         for batch_id in range(1, num_batches + 1):
             amzn_sent, amzn_lines = amzn_data.next()
             yelp_sent, yelp_lines = yelp_data.next()
-
+	   
+          
             # Train the discriminator / adversary.
             for _ in range(num_adv):
                 #amzn_enc = label_predictor.predict([amzn_lines])
-                domain.train_on_batch([amzn_lines], [zeros])
+                domain.train_on_batch([amzn_lines], [ones])
                 #yelp_enc = enc_model.predict([yelp_lines])
-                domain.train_on_batch([yelp_lines], [ones])
+                domain.train_on_batch([yelp_lines], [zeros])
 
             # Trains the generator / sentiment analyzer.
             label_predictor.train_on_batch([amzn_lines], [amzn_sent])
