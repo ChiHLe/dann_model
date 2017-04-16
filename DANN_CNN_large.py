@@ -185,7 +185,7 @@ def build_adversary(input_length):
     """Predicts the domain of the vector."""
     input_layer = Input(shape=(input_length,))
     x = GradientReversalLayer(1)(input_layer)
-    x = Dense(512, activation='relu')
+    x = Dense(512, activation='relu')(x)
     x = Dropout(0.5)(x)
     x = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=[input_layer], outputs=[x])
@@ -232,7 +232,7 @@ if __name__ == '__main__':
 
     # Builds the training models.
     adv_model, train_model, sent_model, enc_model = build_training_models(
-        sentence_length, num_embed_dims, d.vocab_size)
+        sentence_length, num_embed_dims, d.vocab_size+2)
 
     # Amazon -> 0, Yelp -> 1
     zeros, ones = np.zeros((batch_size,)), np.ones((batch_size,))
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     def print_eval(iterable, name, adv_target):
         sent, lines = iterable.next()
         preds = sent_model.predict([lines]).reshape(-1)
-        adv_preds = adv_model.predict([lines]).reshape(-1)
+        adv_preds = train_model.predict([lines]).reshape(-1)
         accuracy = np.mean(np.round(preds) == np.round(sent))
         adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
         sys.stdout.write('   [ %s ] accuracy: %.3f  |  adv: %.3f\n'
