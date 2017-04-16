@@ -29,9 +29,9 @@ if __name__ == '__main__':
     X_train = np.expand_dims(X_train, axis =2)
     X_test = np.expand_dims(X_test, axis=2)
     X_new = np.expand_dims(X_new, axis=2)
-
+    in_score = 0
     max_score = 0
-for i in range(0,30):
+for i in range(0, 31):
     print("Trial # ", i)
 
     label_predictor = Sequential()
@@ -48,9 +48,14 @@ for i in range(0,30):
     label_predictor.fit(X_train, y_train, validation_data=(X_test, y_test), shuffle=True,  epochs=3, batch_size=5,verbose=2)
     print("-------")
     # Final evaluation of the model
-    scores=label_predictor.evaluate(X_new, y_new, verbose=2)
-    print("Accuracy: %.2f%%" % (scores[1]*100))
+    scores=label_predictor.evaluate(X_test, y_test, verbose=1)
+    if (scores[1]*100 > in_score):
+        in_score = scores[1]*100
+    scores=label_predictor.evaluate(X_new, y_new, verbose=1)
+    print("Current Target Accuracy: %.2f%%" % (scores[1]*100))
     if (scores[1]*100 > max_score):
         max_score = scores[1]*100
-    print("Current maximum accuracy: %.2f%%" %max_score)
-
+    print("Maximum Target domain accuracy: %.2f%%" %max_score)
+    print("Maximum In domain accuracy: %.2f%%" % in_score)
+    transfer_loss = max_score - in_score
+    print("Transfer Loss: %.2f%%" % transfer_loss)
