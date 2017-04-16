@@ -169,7 +169,8 @@ if __name__ == '__main__':
     num_batches = 100
 
     Model = Sequential()
-    Model.add(Conv1D(filters=64, kernel_size=3, padding='same', activation='relu', input_shape=(sentence_length,1)))
+    Model.add(Embedding(d.vocab_size, 128, input_shape = (sentence_length,)))
+    Model.add(Conv1D(filters=64, kernel_size=3, padding='same', activation='relu'))
     Model.add(Dropout(0.25))
     Model.add(GlobalMaxPool1D())
     Model.add(Dense(sentence_length, activation='tanh'))
@@ -197,7 +198,7 @@ if __name__ == '__main__':
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size, d)
 
     # Yields the testing data.
-    amzn_test = yield_batches('amzn_test.tsv', sentence_length, test_size, d)
+    amzn_test = yield_batches('amazon_test.tsv', sentence_length, test_size, d)
     yelp_test = yield_batches('yelp_test.tsv', sentence_length, test_size, d)
 
         # Amazon -> 0, Yelp -> 1
@@ -226,9 +227,9 @@ if __name__ == '__main__':
             # Train the discriminator / adversary.
             for _ in range(num_adv):
                 #amzn_enc = label_predictor.predict([amzn_lines])
-                domain.train_on_batch([amzn_lines], [zeros])
+                domain.train_on_batch([amzn_lines], [ones])
                 #yelp_enc = enc_model.predict([yelp_lines])
-                domain.train_on_batch([yelp_lines], [ones])
+                domain.train_on_batch([yelp_lines], [zeros])
 
             # Trains the generator / sentiment analyzer.
             label_predictor.train_on_batch([amzn_lines], [amzn_sent])
