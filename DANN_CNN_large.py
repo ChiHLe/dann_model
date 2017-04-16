@@ -219,9 +219,9 @@ if __name__ == '__main__':
     num_embed_dims = 512
     num_adv = 5
 
-    num_epochs = 100
-    num_batches = 100
-
+    num_epochs = 20
+    num_batches = 250
+    final_size = 30000
     # Yields the training data.
     amzn_data = yield_batches('amzn_train.tsv', sentence_length, batch_size, d)
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size, d)
@@ -230,15 +230,28 @@ if __name__ == '__main__':
     amzn_test = yield_batches('amzn_test.tsv', sentence_length, test_size, d)
     yelp_test = yield_batches('yelp_test.tsv', sentence_length, test_size, d)
 
+    # Yields final teting data
+    amzn_final = yield_batches('amzn_test.tsv', sentence_length, final_size, d)
+    yelp_final = yield_batches('yelp_test.tsv', sentence_length, final_size, d)
+
     # Builds the training models.
     adv_model, train_model, sent_model, enc_model = build_training_models(
-        sentence_length, num_embed_dims, d.vocab_size+2)
+        sentence_length, num_embed_dims, d.vocab_size)
 
     # Amazon -> 0, Yelp -> 1
     zeros, ones = np.zeros((batch_size,)), np.ones((batch_size,))
     zeros_test, ones_test = np.zeros((test_size,)), np.ones((test_size,))
-
+    zeros_final, ones_final = np.zeros((final_size,)), np.ones((final_size,))
     def print_eval(iterable, name, adv_target):
+        sent, lines = iterable.next()
+        preds = sent_model.predict([lines]).reshape(-1)
+        adv_preds = train_model.predict([lines]).reshape(-1)
+        accuracy = np.mean(np.round(preds) == np.round(sent))
+        adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
+        sys.stdout.write('   [ %s ] accuracy: %.3f  |  adv: %.3f\n'
+                         % (name, accuracy, adv_accuracy))
+
+    def print_final(iterable, name, adv_target):
         sent, lines = iterable.next()
         preds = sent_model.predict([lines]).reshape(-1)
         adv_preds = train_model.predict([lines]).reshape(-1)
@@ -252,6 +265,10 @@ if __name__ == '__main__':
         print_eval(amzn_test, 'amazon', ones_test)
         print_eval(yelp_test, 'yelp', zeros_test)
         sys.stdout.flush()
+
+        if epoch == 20:
+            print_eval(amzn_final, 'amazon', zeros_final)
+            print_eval(yelp_final, 'yelp', ones_final)
 
         for batch_id in range(1, num_batches + 1):
             amzn_sent, amzn_lines = amzn_data.next()
