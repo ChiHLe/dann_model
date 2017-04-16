@@ -37,13 +37,23 @@ def load_amazon(source_name, target_name, data_folder=None, verbose=False):
 
     # Convert {-1,1} labels to {0,1} labels
     ys, yt, ytest = (np.array((y + 1) / 2, dtype=int) for y in (ys, yt, ytest))
-    domain_train = np.empty(1000)
-    domain_train.fill(1)
+    d_train = xs[:1000,:]
+    domain_train = np.zeros((1000,5001))
+    domain_train[:,:-1] = d_train
 
-    domain_target = np.empty(1000)
-    domain_target.fill(0)
-
-    x_domain = np.concatenate((xs[:1000,:],x_target[:1000,:]))
-    y_domain = np.concatenate((domain_train, domain_target))
-
+    d_target = x_target[:1000,:]
+    domain_target = np.ones((1000,5001))
+    domain_target[:,:-1] = d_target
+    
+    
+   
+    domain_data = np.concatenate((domain_train, domain_target))
+    
+    domain_data = np.random.permutation(domain_data)
+   # print(domain_data)
+    
+    x_domain = np.asarray(domain_data[:, :-1])
+    y_domain = np.asarray(domain_data[:,-1:])
+   # print(x_domain)
+   # print(y_domain)
     return xs, ys, xt, yt, xtest, ytest, x_domain, y_domain
