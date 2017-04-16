@@ -163,17 +163,18 @@ if __name__ == '__main__':
     batch_size = 32
     test_size = 1000
     num_embed_dims = 512
-    num_adv = 5
+    num_adv = 3
 
     num_epochs = 100
     num_batches = 100
 
     Model = Sequential()
-    Model.add(Embedding(d.vocab_size, 128, input_shape = (sentence_length,)))
+   # Model.add(Input(shape=(sentence_length,)))
+    Model.add(Embedding(d.vocab_size+22, 128, input_shape=(sentence_length,)))
     Model.add(Conv1D(filters=64, kernel_size=3, padding='same', activation='relu'))
     Model.add(Dropout(0.25))
     Model.add(GlobalMaxPool1D())
-    Model.add(Dense(sentence_length, activation='tanh'))
+    Model.add(Dense(100, activation='tanh'))
     Model.add(Dropout(0.25))
     Model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -206,13 +207,16 @@ if __name__ == '__main__':
     zeros_test, ones_test = np.zeros((test_size,)), np.ones((test_size,))
 
     def print_eval(iterable, name, adv_target):
-        sent, lines = iterable.next()
-        preds = label_predictor.predict([lines]).reshape(-1)
-        adv_preds = domain.predict([lines]).reshape(-1)
-        accuracy = np.mean(np.round(preds) == np.round(sent))
-        adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
+        sent, lines = iterable.next() 
+        
+        accuracy = label_predictor.evaluate([lines],[sent], verbose=1)
+        adv_accuracy = domain.evaluate([lines], [adv_target], verbose=1)
+       # preds = label_predictor.predict([lines]).reshape(-1)
+       # adv_preds = domain.predict([lines]).reshape(-1)
+       # accuracy = np.mean(np.round(preds) == np.round(sent))
+       # adv_accuracy = np.mean(np.round(adv_preds) == np.round(adv_target))
         sys.stdout.write('   [ %s ] accuracy: %.3f  |  adv: %.3f\n'
-                         % (name, accuracy, adv_accuracy))
+                         % (name, accuracy[1]*100., adv_accuracy[1]*100.))
 
     for epoch in range(1, num_epochs + 1):
         sys.stdout.write('\repoch %d                  \n' % epoch)
@@ -223,7 +227,8 @@ if __name__ == '__main__':
         for batch_id in range(1, num_batches + 1):
             amzn_sent, amzn_lines = amzn_data.next()
             yelp_sent, yelp_lines = yelp_data.next()
-
+	   
+          
             # Train the discriminator / adversary.
             for _ in range(num_adv):
                 #amzn_enc = label_predictor.predict([amzn_lines])
