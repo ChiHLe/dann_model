@@ -25,6 +25,7 @@ from keras.datasets import imdb
 from keras.engine.topology import Layer
 import theano
 
+
 import numpy as np
 class ReverseGradient(theano.Op):
     """ theano operation to reverse the gradients
@@ -81,7 +82,7 @@ class GradientReversalLayer(Layer):
         base_config = super(GradientReversalLayer, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-from sklearn.datasets import load_svmlight_files
+
 
 BASE = os.path.dirname(os.path.realpath(__file__))
 word2index = imdb.get_word_index()
@@ -111,8 +112,7 @@ def yield_batches(name, sentence_length, batch_size):
                 arrs = []
 
 def convert_to_idx(line):
-    return [word2index[token] for token in line]
-
+    return [word2index[token] for token in line if token in word2index and word2index[token] < 5000]
 def build_encoder(input_length, output_length, vocab_size):
     """Builds the encoder model."""
     input_layer = Input(shape=(input_length,))
@@ -161,6 +161,7 @@ if __name__ == '__main__':
     test_size = 500
     num_embed_dims = 512
     num_adv = 5
+    max_words = 5000
 
     num_epochs = 20
     num_batches = 100
@@ -169,7 +170,7 @@ if __name__ == '__main__':
 
     train_index = 0
     test_index = 0
-    (x_train, y_train), (x_test, y_test) = imdb.load_data(max_words=sentence_length)
+    (x_train, y_train), (x_test, y_test) = imdb.load_data(maxlen=sentence_length,num_words = max_words)
 
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size)
     # Yields the testing data.
@@ -182,8 +183,7 @@ if __name__ == '__main__':
 
 
     # Builds the training models.
-    adv_model, train_model, sent_model, enc_model = build_training_models(
-        sentence_length, num_embed_dims, word2index.size() )
+    train_model, sent_model, enc_model = build_training_models(sentence_length, num_embed_dims, max_words)
 
     # Amazon -> 0, Yelp -> 1
 
