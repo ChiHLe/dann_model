@@ -165,7 +165,7 @@ def build_training_models(input_length, latent_length, vocab_size):
     return adv_model, train_model, sent_model, enc_model
 
 if __name__ == '__main__':
-    sentence_length = 100
+    sentence_length = 500
     batch_size = 25
     test_size = 500
     num_embed_dims = 512
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     test_index = 0
     (x_train, y_train), (x_test, y_test) = imdb.load_data(maxlen=sentence_length,num_words = max_words)
 
-    imdb_data = iter(zip(y_train, x_train))
+
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size)
     # Yields the testing data.
 
@@ -232,15 +232,15 @@ if __name__ == '__main__':
     for epoch in range(1, num_epochs + 1):
         sys.stdout.write('\repoch %d                  \n' % epoch)
 
-        print_eval(yelp_test, 'yelp', zeros_test)
+       # print_eval(yelp_test, 'yelp', zeros_test)
         sys.stdout.flush()
 
-        if epoch == 20 or epoch == 1:
+        if epoch == 20:
             print_imdb('imdb')
             print_eval(yelp_final, 'yelp', zeros_final)
 
         for batch_id in range(1, num_batches + 1):
-            imdb_sent, imdb_lines = x_train[index:index+batch_size], y_train[index:index+batch_size]
+            imdb_sent, imdb_lines = y_train[index:index+batch_size], sequence.pad_sequences(x_train[index:index+batch_size],maxlen=sentence_length)
             yelp_sent, yelp_lines = yelp_data.next()
 
             # Train the discriminator / adversary.
