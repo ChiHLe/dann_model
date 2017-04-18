@@ -18,7 +18,7 @@ from keras.layers import Dense
 from keras.layers import Input
 from keras.layers import Embedding
 from keras.layers import Conv1D
-from keras.layers import GlobalMaxPool1D
+from keras.layers import GlobalMaxPool1D, Flatten
 from keras.layers import concatenate
 from keras.models import Model
 from keras.datasets import imdb
@@ -117,11 +117,13 @@ def build_encoder(input_length, output_length, vocab_size):
     """Builds the encoder model."""
     input_layer = Input(shape=(input_length,))
     input_layer = Input(shape=(input_length,))
-    x = Embedding(vocab_size, 128)(input_layer)
+    x = Embedding(vocab_size, 512)(input_layer)
     filters = [2, 3, 4]
     x = [Conv1D(64, length, padding='same')(x) for length in filters]
     x = concatenate(x, axis=-1)
     x = GlobalMaxPool1D()(x)
+    #x = Flatten()(x)
+    #x = Dense(512, activation='tanh')(x)
     x = Dense(output_length, activation='tanh')(x)
     model = Model(inputs=[input_layer], outputs=[x])
     return model
@@ -130,8 +132,8 @@ def build_encoder(input_length, output_length, vocab_size):
 def build_sentiment(input_length):
     """Predicts if the vector corresponds to positive or negative."""
     input_layer = Input(shape=(input_length,))
-    x = Dense(128, activation='tanh')(input_layer)
-    x = Dropout(0.5)(x)
+    x = Dense(512, activation='tanh')(input_layer)
+    x = Dropout(0.2)(x)
     x = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=[input_layer], outputs=[x])
     return model
@@ -139,9 +141,9 @@ def build_sentiment(input_length):
 def build_adversary(input_length):
     """Predicts the domain of the vector."""
     input_layer = Input(shape=(input_length,))
-    x = GradientReversalLayer(1)(input_layer)
+    x = GradientReversalLayer(0.25)(input_layer)
     x = Dense(512, activation='relu')(x)
-    x = Dropout(0.5)(x)
+    x = Dropout(0.2)(x)
     x = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=[input_layer], outputs=[x])
     return model
@@ -166,22 +168,25 @@ def build_training_models(input_length, latent_length, vocab_size):
 
 if __name__ == '__main__':
     sentence_length = 500
-    batch_size = 25
+    batch_size = 22
     test_size = 500
     num_embed_dims = 512
-    num_adv = 2
-    max_words = 5000
+    num_adv = 1
+    max_words = 10000
 
-    num_epochs = 10
+    num_epochs = 20
     num_batches = 100
-    final_size = 25000
+    final_size = 5000
     # Yields the training data.
 
     train_index = 0
     test_index = 0
     (x_train, y_train), (x_test, y_test) = imdb.load_data(maxlen=sentence_length,num_words = max_words)
 
-
+    x_train = np.concatenate((x_train, x_test[:20000]))
+    y_train = np.concatenate((y_train, y_test[:20000]))
+    x_test = x_test[20000:]
+    y_test = y_test[20000:]
     yelp_data = yield_batches('yelp_train.tsv', sentence_length, batch_size)
     # Yields the testing data.
 
@@ -223,7 +228,7 @@ if __name__ == '__main__':
         sys.stdout.write('   [ %s ] accuracy: %.3f  |  adv: %.3f\n'
                          % (name, accuracy, adv_accuracy))
     def print_imdb(name):
-        imdb_test = sequence.pad_sequences(x_test, maxlen = sentence_length)
+        imdb_test = sequence.pad_sequences(x_test, maxlen = sentence_length, value= 0., padding='pre')
         preds = sent_model.predict(imdb_test).reshape(-1)
         accuracy = np.mean(np.round(preds) == np.round(y_test))
         sys.stdout.write('   [ %s ] accuracy: %.3f\n' % (name, accuracy))
@@ -235,15 +240,16 @@ if __name__ == '__main__':
        # print_eval(yelp_test, 'yelp', zeros_test)
         sys.stdout.flush()
 
-        if epoch == 20:
+        if epoch % 10 == 0:
             print_imdb('imdb')
-            print_eval(yelp_final, 'yelp', zeros_final)
+            print_eval(yelp_final, 'yelp', ones_final)
 
         for batch_id in range(1, num_batches + 1):
-            imdb_sent, imdb_lines = y_train[index:index+batch_size], sequence.pad_sequences(x_train[index:index+batch_size],maxlen=sentence_length)
+            imdb_sent, imdb_lines = y_train[index:index+batch_size], sequence.pad_sequences(x_train[index:index+batch_size],maxlen=sentence_length, value = 0., padding='pre')
             yelp_sent, yelp_lines = yelp_data.next()
 
             # Train the discriminator / adversary.
+	    
             for _ in range(num_adv):
                 imdb_enc = enc_model.predict([imdb_lines])
                 adv_model.train_on_batch([imdb_enc], [zeros])
